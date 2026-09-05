@@ -46,7 +46,7 @@ def rasterize(
     # front to back, and composite the background with the leftover transmittance.
     # This must reproduce 3dgs_renderer_v1 exactly.
     color = wp.vec3(0.0, 0.0, 0.0)
-    transmittance = 1.0
+    transmittance = wp.float32(1.0)
     for i in range(count):
         du = px - centres[i][0]
         dv = py - centres[i][1]
