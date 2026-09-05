@@ -169,9 +169,31 @@ class CpuRenderer:
                 # TODO: Calculate the RGB value at (x, y)
                 # Composite the sorted splats front to back, then finish with the
                 # background weighted by the remaining transmittance.
+                color = np.zeros(3, dtype=np.float32)
+                transmittance = 1.0
+                for i in range(projected.centres.shape[0]):
+                    du = x - projected.centres[i, 0]
+                    dv = y - projected.centres[i, 1]
+                    sq_m_dist = projected.conics[i, 0] * (du ** 2) + 2 * projected.conics[i, 1] * du * dv + projected.conics[i, 2] * (dv ** 2)
+
+                    if supports[i] == 0.0 or sq_m_dist > supports[i]:
+                        continue
+
+                    gauss_density = np.exp(-sq_m_dist / 2)
+                    alpha = min(gauss_density * projected.opacities[i], 0.99)
+
+                    if alpha < ALPHA_CUTOFF:
+                        continue
+
+                    color += transmittance * alpha * projected.colors[i]
+                    transmittance *= 1 - alpha
+
+                    if transmittance < 10 ** -4:
+                        break
 
                 # TODO: The RHS is a placeholder
-                image[py, px] = np.zeros(3, dtype=np.float32)
+                color += transmittance * background_color
+                image[py, px] = color
 
         return image
 

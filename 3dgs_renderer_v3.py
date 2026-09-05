@@ -68,9 +68,38 @@ def rasterize_tiles(
     # Composite only this pixel's tile list, `tile_offsets[tile] .. tile_offsets[tile + 1]`,
     # which the builder has already sorted near to far. Finish with the background
     # weighted by the remaining transmittance, matching 3dgs_renderer_v1.
+    color = wp.vec3(0.0, 0.0, 0.0)
+    transmittance = 1.0
+    
+    tile_start = tile_offsets[tile]
+    tile_end = tile_offsets[tile + 1]
+
+    for idx in range(tile_start, tile_end):
+        packed_pair = packed_pairs[idx]
+        splat_idx = wp.int32(packed_pair & wp.uint64(0xFFFFFFFF))
+
+        du = px - centres[splat_idx][0]
+        dv = py - centres[splat_idx][1]
+        sq_m_dist = conics[splat_idx][0] * (du * du) + 2.0 * conics[splat_idx][1] * du * dv + conics[splat_idx][2] * (dv * dv)
+
+        if supports[splat_idx] == 0.0 or sq_m_dist > supports[splat_idx]:
+            continue
+
+        gauss_density = wp.exp(-sq_m_dist * 0.5)
+        alpha = wp.min(gauss_density * opacities[splat_idx], 0.99)
+
+        if alpha < ALPHA_CUTOFF:
+            continue
+
+        color += transmittance * alpha * colours[splat_idx]
+        transmittance *= 1.0 - alpha
+
+        if transmittance < TRANSMITTANCE_CUTOFF:
+            break
 
     # TODO: The RHS is a placeholder
-    image[pixel] = wp.vec3(0.0, 0.0, 0.0)
+    color += transmittance * background
+    image[pixel] = color
 
 
 class GaussianFirstWarpRenderer:
